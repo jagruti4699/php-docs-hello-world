@@ -1,3 +1,3 @@
 <?php
 
-echo "Hello World! updated";
+echo "Hello World! updated for testing";
