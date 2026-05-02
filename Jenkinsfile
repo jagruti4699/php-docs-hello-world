@@ -24,7 +24,7 @@ pipeline {
       steps {
         sh '''
        
-        packer init packer/
+        packer init packer/packer.pkr.hcl
         packer validate packer/packer.pkr.hcl
         packer build packer/packer.pkr.hcl
         '''
