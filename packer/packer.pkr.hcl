@@ -12,14 +12,12 @@ source "azure-arm" "php-image" {
 
   subscription_id = "a9cafd12-1202-4c01-9841-5cf127a697fa"
 
-  # Use same RG for build + final image (fixes temp RG issue)
-  managed_image_resource_group_name = "rg-images-uat"
-  build_resource_group_name         = "rg-images-uat"
+  managed_image_resource_group_name = "rg-images"
+  build_resource_group_name         = "rg-images"
 
   managed_image_name = "php-image-${formatdate("YYYYMMDDhhmmss", timestamp())}"
 
- 
-  vm_size   = "Standard_D2s_v3"
+  vm_size = "Standard_D2s_v3"
 
   os_type         = "Linux"
   image_publisher = "Canonical"
@@ -34,11 +32,14 @@ source "azure-arm" "php-image" {
 build {
   sources = ["source.azure-arm.php-image"]
 
-  # Install dependencies
+  # Install dependencies (FIXED)
   provisioner "shell" {
     inline = [
-      "sudo apt update",
-      "sudo apt install -y apache2 php php-mysql unzip",
+      "sudo apt-get update -y || (sleep 10 && sudo apt-get update -y)",
+      "sudo apt-get install -y software-properties-common",
+      "sudo add-apt-repository universe",
+      "sudo apt-get update -y",
+      "sudo apt-get install -y apache2 php php-mysql unzip || (sleep 10 && sudo apt-get install -y apache2 php php-mysql unzip)",
       "sudo rm -rf /var/www/html/*"
     ]
   }
