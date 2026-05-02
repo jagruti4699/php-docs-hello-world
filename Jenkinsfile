@@ -23,8 +23,8 @@ pipeline {
     stage('Build Image with Packer') {
       steps {
         sh '''
-        packer init .
-        packer build packer.pkr.hcl
+        packer init packer/
+        packer build packer/packer.pkr.hcl
         '''
       }
     }
