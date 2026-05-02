@@ -1,4 +1,4 @@
-source "azure-arm" "php-image" {
+  source "azure-arm" "php-image" {
   use_azure_cli_auth = true
 
   subscription_id = "a9cafd12-1202-4c01-9841-5cf127a697fa"
