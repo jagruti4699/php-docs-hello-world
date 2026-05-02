@@ -81,7 +81,7 @@ pipeline {
 
         az vmss update-instances \
           --resource-group $VMSS_RG \
-          --name $VMSS_NAME
+          --name $VMSS_NAME \
           --instance-ids $IDS
         '''
       }
