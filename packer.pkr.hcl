@@ -15,7 +15,7 @@ source "azure-arm" "php-image" {
   image_sku       = "22_04-lts"
 
   azure_tags = {
-    environment = "dev"
+    environment = "uat"
   }
 }
 
