@@ -18,7 +18,7 @@ source "azure-arm" "php-image" {
 
   managed_image_name = "php-image-${formatdate("YYYYMMDDhhmmss", timestamp())}"
 
-  location  = "UAE North"
+ 
   vm_size   = "Standard_D2als_v6"
 
   os_type         = "Linux"
