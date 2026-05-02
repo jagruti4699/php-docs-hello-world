@@ -12,8 +12,8 @@ source "azure-arm" "php-image" {
 
   subscription_id = "a9cafd12-1202-4c01-9841-5cf127a697fa"
 
-  managed_image_resource_group_name = "rg-images"
-  build_resource_group_name         = "rg-images"
+  managed_image_resource_group_name = "rg-images-uat"
+  build_resource_group_name         = "rg-images-uat"
 
   managed_image_name = "php-image-${formatdate("YYYYMMDDhhmmss", timestamp())}"
 
