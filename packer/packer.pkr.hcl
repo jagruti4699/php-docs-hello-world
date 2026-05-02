@@ -12,8 +12,11 @@ source "azure-arm" "php-image" {
 
   subscription_id = "a9cafd12-1202-4c01-9841-5cf127a697fa"
 
+  # Use same RG for build + final image (fixes temp RG issue)
   managed_image_resource_group_name = "rg-images-uat"
-  managed_image_name                = "php-image-${formatdate("YYYYMMDDhhmmss", timestamp())}"
+  build_resource_group_name         = "rg-images-uat"
+
+  managed_image_name = "php-image-${formatdate("YYYYMMDDhhmmss", timestamp())}"
 
   location  = "UAE North"
   vm_size   = "Standard_D2als_v6"
@@ -31,6 +34,7 @@ source "azure-arm" "php-image" {
 build {
   sources = ["source.azure-arm.php-image"]
 
+  # Install dependencies
   provisioner "shell" {
     inline = [
       "sudo apt update",
@@ -39,11 +43,13 @@ build {
     ]
   }
 
+  # Copy app from Jenkins
   provisioner "file" {
     source      = "app.zip"
     destination = "/tmp/app.zip"
   }
 
+  # Deploy app
   provisioner "shell" {
     inline = [
       "sudo unzip /tmp/app.zip -d /var/www/html",
