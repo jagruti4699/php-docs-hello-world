@@ -23,8 +23,9 @@ pipeline {
     stage('Build Image with Packer') {
       steps {
         sh '''
-        packer validate packer.json
-        packer build packer.json
+       
+        packer init packer/
+        packer build packer/packer.pkr.hcl
         '''
       }
     }
