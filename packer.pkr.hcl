@@ -1,13 +1,13 @@
 source "azure-arm" "php-image" {
   use_azure_cli_auth = true
 
-  subscription_id = "<your-subscription-id>"
+  subscription_id = "a9cafd12-1202-4c01-9841-5cf127a697fa"
 
   managed_image_resource_group_name = "rg-images"
   managed_image_name                = "php-image-${formatdate("YYYYMMDDhhmmss", timestamp())}"
 
-  location  = "Central India"
-  vm_size   = "Standard_B2s"
+  location  = "UAE North (Zone 1)"
+  vm_size   = "Standard_D2als_v6"
 
   os_type         = "Linux"
   image_publisher = "Canonical"
