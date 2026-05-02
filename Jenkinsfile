@@ -65,12 +65,13 @@ pipeline {
       }
     }
 
-    stage('Rolling Upgrade VMSS') {
+    stage('update all instances in VMSS') {
       steps {
         sh '''
-        az vmss rolling-upgrade start \
+        az vmss update-instances \
           --resource-group $VMSS_RG \
           --name $VMSS_NAME
+          --instance-ids "*"
         '''
       }
     }
