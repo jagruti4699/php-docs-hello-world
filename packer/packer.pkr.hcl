@@ -1,3 +1,12 @@
+packer {
+  required_plugins {
+    azure = {
+      version = ">= 1.0.0"
+      source  = "github.com/hashicorp/azure"
+    }
+  }
+}
+
 source "azure-arm" "php-image" {
   use_azure_cli_auth = true
 
@@ -6,7 +15,7 @@ source "azure-arm" "php-image" {
   managed_image_resource_group_name = "rg-images"
   managed_image_name                = "php-image-${formatdate("YYYYMMDDhhmmss", timestamp())}"
 
-  location  = "UAE North (Zone 1)"
+  location  = "UAE North"
   vm_size   = "Standard_D2als_v6"
 
   os_type         = "Linux"
@@ -26,13 +35,10 @@ build {
     inline = [
       "sudo apt update",
       "sudo apt install -y apache2 php php-mysql unzip",
-
-      # Clean default web folder
       "sudo rm -rf /var/www/html/*"
     ]
   }
 
-  # Copy your PHP app from Jenkins workspace
   provisioner "file" {
     source      = "app.zip"
     destination = "/tmp/app.zip"
