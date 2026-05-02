@@ -19,7 +19,7 @@ source "azure-arm" "php-image" {
   managed_image_name = "php-image-${formatdate("YYYYMMDDhhmmss", timestamp())}"
 
  
-  vm_size   = "Standard_D2als_v6"
+  vm_size   = "Standard_D2s_v3"
 
   os_type         = "Linux"
   image_publisher = "Canonical"
