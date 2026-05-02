@@ -68,10 +68,21 @@ pipeline {
     stage('update all instances in VMSS') {
       steps {
         sh '''
+        echo "Fetching VMSS instance IDs..."
+        IDS=$(az vmss list-instances \
+          --resource-group $VMSS_RG \
+          --name $VMSS_NAME \
+          --query "[].instanceId" \
+          -o tsv)
+
+        echo "Instance IDs: $IDS"
+
+        echo "Updating instances..."
+
         az vmss update-instances \
           --resource-group $VMSS_RG \
           --name $VMSS_NAME
-          --instance-ids "*"
+          --instance-ids $IDS
         '''
       }
     }
