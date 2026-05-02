@@ -25,6 +25,7 @@ pipeline {
         sh '''
        
         packer init packer/
+        packer validate packer/packer.pkr.hcl
         packer build packer/packer.pkr.hcl
         '''
       }
