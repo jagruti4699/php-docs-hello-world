@@ -65,10 +65,14 @@ pipeline {
       }
     }
 
-    stage('update all instances in VMSS') {
+    // 🔥 UPDATED STAGE (Sequential rollout)
+    stage('Sequential VMSS Instance Update') {
       steps {
         sh '''
+        set -e
+
         echo "Fetching VMSS instance IDs..."
+
         IDS=$(az vmss list-instances \
           --resource-group $VMSS_RG \
           --name $VMSS_NAME \
@@ -77,12 +81,22 @@ pipeline {
 
         echo "Instance IDs: $IDS"
 
-        echo "Updating instances..."
+        for ID in $IDS
+        do
+          echo "======================================"
+          echo "Updating instance: $ID"
+          echo "======================================"
 
-        az vmss update-instances \
-          --resource-group $VMSS_RG \
-          --name $VMSS_NAME \
-          --instance-ids $IDS
+          az vmss update-instances \
+            --resource-group $VMSS_RG \
+            --name $VMSS_NAME \
+            --instance-ids $ID
+
+          echo "Waiting for instance $ID to stabilize..."
+          sleep 60
+        done
+
+        echo "All instances updated successfully"
         '''
       }
     }
