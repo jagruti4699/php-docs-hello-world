@@ -65,7 +65,7 @@ pipeline {
       }
     }
 
-    // 🔥 UPDATED STAGE (Sequential rollout)
+    // UPDATED STAGE (Sequential rollout)
     stage('Sequential VMSS Instance Update') {
       steps {
         sh '''
