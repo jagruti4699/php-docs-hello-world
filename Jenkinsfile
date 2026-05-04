@@ -2,89 +2,79 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_RG     = 'rg-images-uat'
-        VMSS_RG      = 'uat-uae-rg'
-        VMSS_NAME    = 'uat-partner-vmss'
-        GALLERY_NAME = 'uatsafegoldgallary'
-        IMAGE_NAME   = 'uat-golden-image-partner'
+        // --- Azure Resource Details ---
+        SUBSCRIPTION  = 'a9cafd12-1202-4c01-9841-5cf127a697fa'
+        VMSS_RG       = 'uat-uae-rg'
+        VMSS_NAME     = 'uat-partner-vmss'
+        
+        // --- Storage Details ---
+        STORAGE_ACC   = 'safegoldpoc' 
+        CONTAINER     = 'deployments' // Make sure this container exists in your storage account
     }
 
     stages {
         stage('Azure Login') {
             steps {
-                // Ensure Managed Identity has 'Contributor' on the RG and 'User Access Administrator' or 'Owner' if needed
-                sh '''
-                az login --identity
-                az account set --subscription a9cafd12-1202-4c01-9841-5cf127a697fa
-                '''
+                sh "az login --identity"
+                sh "az account set --subscription ${env.SUBSCRIPTION}"
             }
         }
 
-        stage('Generate Image Version') {
+        stage('Create Deployment Container') {
+            steps {
+                // Ensures the container exists; skips if it already does
+                sh "az storage container create --account-name ${env.STORAGE_ACC} --name ${env.CONTAINER} --auth-mode login || true"
+            }
+        }
+
+        stage('Package & Upload Code') {
             steps {
                 script {
-                    // Using Build Number ensures we never exceed Azure's Version Integer Limit
-                    env.IMAGE_VERSION = "1.0.${BUILD_NUMBER}"
-                    echo "Generated Image Version: ${env.IMAGE_VERSION}"
-                }
-            }
-        }
-
-        stage('Prepare App') {
-            steps {
-                sh 'zip -r app.zip . -x "*.git*"'
-            }
-        }
-
-        stage('Build Image with Packer') {
-            steps {
-                sh '''
-                packer init packer/packer.pkr.hcl
-                packer validate -var "image_version=$IMAGE_VERSION" packer/packer.pkr.hcl
-                packer build -var "image_version=$IMAGE_VERSION" packer/packer.pkr.hcl
-                '''
-            }
-        }
-
-        stage('Update VMSS Model') {
-            steps {
-                script {
-                    // Fetch the ID of the version we JUST created
-                    env.IMAGE_ID = sh(
-                        script: '''
-                            az sig image-version show \
-                            --resource-group $IMAGE_RG \
-                            --gallery-name $GALLERY_NAME \
-                            --gallery-image-definition $IMAGE_NAME \
-                            --gallery-image-version $IMAGE_VERSION \
-                            --query "id" -o tsv
-                        ''',
+                    // 1. Zip the current workspace code
+                    sh 'zip -r app.zip . -x "*.git*" "packer/*" "Jenkinsfile"'
+                    
+                    // 2. Upload to the safegoldpoc storage account
+                    sh "az storage blob upload --account-name ${env.STORAGE_ACC} --container-name ${env.CONTAINER} --file app.zip --name app.zip --overwrite --auth-mode login"
+                    
+                    // 3. Generate a 1-hour secure link (SAS) so the VM can download the zip
+                    env.DEPLOY_URL = sh(
+                        script: "az storage blob generate-sas --account-name ${env.STORAGE_ACC} --container-name ${env.CONTAINER} --name app.zip --permissions r --expiry `date -u -d '1 hour' +%Y-%m-%dT%H:%MZ` --full-uri -o tsv", 
                         returnStdout: true
                     ).trim()
                 }
-                sh '''
-                az vmss update \
-                  --resource-group $VMSS_RG \
-                  --name $VMSS_NAME \
-                  --set virtualMachineProfile.storageProfile.imageReference.id=$IMAGE_ID
-                '''
             }
         }
 
-        stage('Rolling VMSS Instance Update') {
+        stage('Deploy to VMSS') {
             steps {
-                sh '''
-                set -e
-                IDS=$(az vmss list-instances --resource-group $VMSS_RG --name $VMSS_NAME --query "[].instanceId" -o tsv)
-
-                for ID in $IDS
-                do
-                  echo "Updating instance: $ID"
-                  az vmss update-instances --resource-group $VMSS_RG --name $VMSS_NAME --instance-ids $ID
-                  sleep 15
-                done
-                '''
+                echo "Updating VMSS Extension to pull new code..."
+                
+                // We use the CustomScript extension to unzip the code into the web root
+                sh """
+                az vmss extension set \
+                  --publisher Microsoft.Azure.Extensions \
+                  --version 2.0 \
+                  --name CustomScript \
+                  --resource-group ${env.VMSS_RG} \
+                  --vmss-name ${env.VMSS_NAME} \
+                  --settings '{"fileUris": ["${env.DEPLOY_URL}"], "commandToExecute": "sudo unzip -o app.zip -d /var/www/html && sudo chown -R www-data:www-data /var/www/html && sudo systemctl restart nginx"}'
+                """
             }
+        }
+
+        stage('Rolling Refresh') {
+            steps {
+                echo "Applying changes to all active instances..."
+                // This forces every running VM to run the script immediately
+                sh "az vmss update-instances --resource-group ${env.VMSS_RG} --name ${env.VMSS_NAME} --instance-ids '*'"
+            }
+        }
+    }
+    
+    post {
+        always {
+            // Clean up the workspace zip file
+            sh 'rm -f app.zip'
         }
     }
 }
