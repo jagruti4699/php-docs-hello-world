@@ -21,7 +21,7 @@ source "azure-arm" "php-image" {
     image_name     = "uat-golden-image-partner"
     image_version  = "0.0.1"
   }
-
+  security_type = "TrustedLaunch"
   managed_image_name                = "php-image-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   managed_image_resource_group_name = "rg-images-uat"
 
