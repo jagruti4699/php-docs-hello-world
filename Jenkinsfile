@@ -4,7 +4,7 @@ pipeline {
     environment {
         IMAGE_RG     = 'rg-images-uat'
         VMSS_RG      = 'uat-uae-rg'
-        VMSS_NAME    = 'demo-2-php'
+        VMSS_NAME    = 'uat-partner-vmss'
         GALLERY_NAME = 'uatsafegoldgallary'
         IMAGE_NAME   = 'uat-golden-image-partner'
     }
