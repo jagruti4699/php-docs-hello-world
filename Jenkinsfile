@@ -5,6 +5,9 @@ pipeline {
     IMAGE_RG = 'rg-images-uat'
     VMSS_RG  = 'uat-uae-rg'
     VMSS_NAME = 'demo-2-php'
+
+    GALLERY_NAME = 'uatsafegoldgallary'
+    IMAGE_NAME   = 'uat-golden-image-partner'
   }
 
   stages {
@@ -15,6 +18,19 @@ pipeline {
         az login --identity
         az account show
         '''
+      }
+    }
+
+    stage('Generate Image Version') {
+      steps {
+        script {
+          env.IMAGE_VERSION = sh(
+            script: "date +1.0.%Y%m%d%H%M%S",
+            returnStdout: true
+          ).trim()
+
+          echo "Generated Image Version: ${env.IMAGE_VERSION}"
+        }
       }
     }
 
@@ -31,25 +47,30 @@ pipeline {
         sh '''
         packer init packer/packer.pkr.hcl
         packer validate packer/packer.pkr.hcl
-        packer build packer/packer.pkr.hcl
+
+        packer build \
+          -var "image_version=$IMAGE_VERSION" \
+          packer/packer.pkr.hcl
         '''
       }
     }
 
-    stage('Get Latest Image') {
+    stage('Get Latest SIG Image Version') {
       steps {
         script {
           env.IMAGE_ID = sh(
             script: '''
-              az image list \
+              az sig image-version list \
                 --resource-group $IMAGE_RG \
+                --gallery-name $GALLERY_NAME \
+                --gallery-image-definition $IMAGE_NAME \
                 --query "sort_by(@,&name)[-1].id" \
                 -o tsv
             ''',
             returnStdout: true
           ).trim()
 
-          echo "Latest Image ID: ${env.IMAGE_ID}"
+          echo "Latest SIG Image ID: ${env.IMAGE_ID}"
         }
       }
     }
@@ -65,13 +86,10 @@ pipeline {
       }
     }
 
-    // UPDATED STAGE (Sequential rollout)
     stage('Sequential VMSS Instance Update') {
       steps {
         sh '''
         set -e
-
-        echo "Fetching VMSS instance IDs..."
 
         IDS=$(az vmss list-instances \
           --resource-group $VMSS_RG \
@@ -79,24 +97,17 @@ pipeline {
           --query "[].instanceId" \
           -o tsv)
 
-        echo "Instance IDs: $IDS"
-
         for ID in $IDS
         do
-          echo "======================================"
           echo "Updating instance: $ID"
-          echo "======================================"
 
           az vmss update-instances \
             --resource-group $VMSS_RG \
             --name $VMSS_NAME \
             --instance-ids $ID
 
-          echo "Waiting for instance $ID to stabilize..."
           sleep 20
         done
-
-        echo "All instances updated successfully"
         '''
       }
     }
