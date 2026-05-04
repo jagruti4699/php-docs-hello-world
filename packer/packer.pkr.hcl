@@ -64,7 +64,7 @@ build {
       "sudo apt-get update -y || true",
       "sudo apt-get install -y unzip || true",
       "sudo unzip /tmp/app.zip -d /var/www/html",
-      "sudo systemctl restart nginx
+      "sudo systemctl restart nginx"
     ]
   }
 }
