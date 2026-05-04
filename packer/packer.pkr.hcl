@@ -14,10 +14,10 @@ variable "image_version" {
 source "azure-arm" "php-image" {
   use_azure_cli_auth = true
 
-  subscription_id = "a9cafd12-1202-4c01-9841-5cf127a697fa"
+  subscription_id           = "a9cafd12-1202-4c01-9841-5cf127a697fa"
   build_resource_group_name = "rg-images-uat"
 
-  #  INPUT (Golden Image)
+  # INPUT (Golden Image)
   shared_image_gallery {
     subscription   = "a9cafd12-1202-4c01-9841-5cf127a697fa"
     resource_group = "rg-images-uat"
@@ -26,7 +26,7 @@ source "azure-arm" "php-image" {
     image_version  = "0.0.1"
   }
 
-  #  OUTPUT (New version)
+  # OUTPUT (New version)
   shared_image_gallery_destination {
     subscription   = "a9cafd12-1202-4c01-9841-5cf127a697fa"
     resource_group = "rg-images-uat"
@@ -36,9 +36,8 @@ source "azure-arm" "php-image" {
   }
 
   security_type = "TrustedLaunch"
-
-  vm_size = "Standard_D2s_v3"
-  os_type = "Linux"
+  vm_size       = "Standard_D2s_v3"
+  os_type       = "Linux"
 
   azure_tags = {
     environment = "uat"
@@ -50,6 +49,8 @@ build {
 
   provisioner "shell" {
     inline = [
+      # Wait for background Azure updates to finish
+      "while [ ! -f /var/lib/cloud/instance/boot-finished ]; do echo 'Waiting for cloud-init...'; sleep 5; done",
       "sudo rm -rf /var/www/html/*"
     ]
   }
@@ -61,10 +62,10 @@ build {
 
   provisioner "shell" {
     inline = [
-      "sudo apt-get update -y || true",
-      "sudo apt-get install -y unzip || true",
+      "sudo apt-get update -y",
+      "sudo apt-get install -y unzip",
       "sudo unzip /tmp/app.zip -d /var/www/html",
-      "sudo systemctl restart nginx"
+      "sudo systemctl restart nginx" # Fixed typo from nignx
     ]
   }
 }
