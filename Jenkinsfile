@@ -93,7 +93,7 @@ pipeline {
             --instance-ids $ID
 
           echo "Waiting for instance $ID to stabilize..."
-          sleep 60
+          sleep 20
         done
 
         echo "All instances updated successfully"
