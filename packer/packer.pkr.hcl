@@ -60,7 +60,7 @@ build {
       "sudo unzip /tmp/app.zip -d /var/www/html",
       "sudo chown -R www-data:www-data /var/www/html",
 
-      "sudo systemctl restart apache2"
+      "sudo systemctl restart nginx"
     ]
   }
 }
