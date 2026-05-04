@@ -46,7 +46,10 @@ pipeline {
       steps {
         sh '''
         packer init packer/packer.pkr.hcl
-        packer validate packer/packer.pkr.hcl
+
+        packer validate \
+          -var "image_version=$IMAGE_VERSION" \
+          packer/packer.pkr.hcl
 
         packer build \
           -var "image_version=$IMAGE_VERSION" \
@@ -99,15 +102,20 @@ pipeline {
 
         for ID in $IDS
         do
+          echo "======================================"
           echo "Updating instance: $ID"
+          echo "======================================"
 
           az vmss update-instances \
             --resource-group $VMSS_RG \
             --name $VMSS_NAME \
             --instance-ids $ID
 
+          echo "Waiting for instance $ID to stabilize..."
           sleep 20
         done
+
+        echo "All instances updated successfully"
         '''
       }
     }
