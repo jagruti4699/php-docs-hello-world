@@ -9,7 +9,7 @@ pipeline {
         
         // --- Storage Details ---
         STORAGE_ACC   = 'safegoldpoc' 
-        CONTAINER     = 'deployments' // Make sure this container exists in your storage account
+        CONTAINER     = 'deployments' 
     }
 
     stages {
@@ -22,7 +22,7 @@ pipeline {
 
         stage('Create Deployment Container') {
             steps {
-                // Ensures the container exists; skips if it already does
+                // Checks if container exists, creates it if not. auth-mode login uses your Managed Identity permissions.
                 sh "az storage container create --account-name ${env.STORAGE_ACC} --name ${env.CONTAINER} --auth-mode login || true"
             }
         }
@@ -30,13 +30,13 @@ pipeline {
         stage('Package & Upload Code') {
             steps {
                 script {
-                    // 1. Zip the current workspace code
+                    // 1. Zip the current workspace code, excluding infrastructure and git files
                     sh 'zip -r app.zip . -x "*.git*" "packer/*" "Jenkinsfile"'
                     
-                    // 2. Upload to the safegoldpoc storage account
+                    // 2. Upload to the storage account (Requires Storage Blob Data Contributor role)
                     sh "az storage blob upload --account-name ${env.STORAGE_ACC} --container-name ${env.CONTAINER} --file app.zip --name app.zip --overwrite --auth-mode login"
                     
-                    // 3. Generate a 1-hour secure link (SAS) so the VM can download the zip
+                    // 3. Generate a temporary 1-hour secure SAS link for the VMs to download the zip
                     env.DEPLOY_URL = sh(
                         script: "az storage blob generate-sas --account-name ${env.STORAGE_ACC} --container-name ${env.CONTAINER} --name app.zip --permissions r --expiry `date -u -d '1 hour' +%Y-%m-%dT%H:%MZ` --full-uri -o tsv", 
                         returnStdout: true
@@ -45,11 +45,11 @@ pipeline {
             }
         }
 
-        stage('Deploy to VMSS') {
+        stage('Set VMSS Extension') {
             steps {
-                echo "Updating VMSS Extension to pull new code..."
+                echo "Updating VMSS Extension Model with new code URL..."
                 
-                // We use the CustomScript extension to unzip the code into the web root
+                // This updates the 'Model'. New instances will automatically use these settings.
                 sh """
                 az vmss extension set \
                   --publisher Microsoft.Azure.Extensions \
@@ -62,19 +62,47 @@ pipeline {
             }
         }
 
-        stage('Rolling Refresh') {
+        stage('Rolling One-by-One Update') {
             steps {
-                echo "Applying changes to all active instances..."
-                // This forces every running VM to run the script immediately
-                sh "az vmss update-instances --resource-group ${env.VMSS_RG} --name ${env.VMSS_NAME} --instance-ids '*'"
+                echo "Starting sequential update to ensure zero downtime..."
+                sh """
+                # Get the list of all active instance IDs
+                INSTANCE_IDS=\$(az vmss list-instances \
+                    --resource-group ${env.VMSS_RG} \
+                    --name ${env.VMSS_NAME} \
+                    --query "[].instanceId" -o tsv)
+
+                for ID in \$INSTANCE_IDS; do
+                    echo "------------------------------------------------"
+                    echo "Processing Instance: \$ID"
+                    echo "------------------------------------------------"
+                    
+                    # Trigger the update on the specific instance
+                    az vmss update-instances \
+                        --resource-group ${env.VMSS_RG} \
+                        --name ${env.VMSS_NAME} \
+                        --instance-ids \$ID
+
+                    echo "Instance \$ID updated. Waiting 30s for health probes to stabilize..."
+                    sleep 30
+                done
+                
+                echo "Deployment successfully rolled out to all instances."
+                """
             }
         }
     }
     
     post {
         always {
-            // Clean up the workspace zip file
+            // Workspace cleanup
             sh 'rm -f app.zip'
+        }
+        success {
+            echo "Deployment to ${env.VMSS_NAME} completed successfully."
+        }
+        failure {
+            echo "Deployment failed. Please check the 'Package & Upload' permissions or VMSS status."
         }
     }
 }
