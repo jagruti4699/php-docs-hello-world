@@ -46,7 +46,7 @@
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                     </span>
-                    <p class="text-xl font-medium">"Hello World! testing from custom scripts"</p>
+                    <p class="text-xl font-medium">"Hello World! testing from custom scripts - 2nd test"</p>
                 </div>
             </div>
 
