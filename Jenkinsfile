@@ -5,11 +5,11 @@ pipeline {
         // --- Azure Resource Details ---
         SUBSCRIPTION  = 'a9cafd12-1202-4c01-9841-5cf127a697fa'
         VMSS_RG       = 'uat-uae-rg'
-        VMSS_NAME     = 'uat-partner-vmss'
+        VMSS_NAME     = 'uat-api-vmss'
         
         // --- Storage Details ---
-        STORAGE_ACC   = 'safegoldpoc' 
-        CONTAINER     = 'deployments' 
+        STORAGE_ACC   = 'uatsafegold' 
+        CONTAINER     = 'uat-api-code' 
     }
 
     stages {
