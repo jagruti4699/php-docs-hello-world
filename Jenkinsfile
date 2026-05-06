@@ -21,7 +21,7 @@ pipeline {
             }
         }
 
-        stage('Create Deployment Container') {
+        stage('Authenticate to Storage') {
             steps {
                 // Checks if container exists, creates it if not.
                 sh "az storage container create --account-name ${env.STORAGE_ACC} --name ${env.CONTAINER} --auth-mode login || true"
