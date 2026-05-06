@@ -9,7 +9,8 @@ pipeline {
         
         // --- Storage Details ---
         STORAGE_ACC   = 'uatsafegold' 
-        CONTAINER     = 'uat-api-code' 
+        CONTAINER     = 'uat-devops'
+        SUBDIR        = 'api' // Subdirectory inside the container
     }
 
     stages {
@@ -22,7 +23,7 @@ pipeline {
 
         stage('Create Deployment Container') {
             steps {
-                // Checks if container exists, creates it if not. auth-mode login uses your Managed Identity permissions.
+                // Checks if container exists, creates it if not.
                 sh "az storage container create --account-name ${env.STORAGE_ACC} --name ${env.CONTAINER} --auth-mode login || true"
             }
         }
@@ -30,15 +31,23 @@ pipeline {
         stage('Package & Upload Code') {
             steps {
                 script {
-                    // 1. Zip the current workspace code, excluding infrastructure and git files
+                    // 1. Zip the current workspace code
                     sh 'zip -r app.zip . -x "*.git*" "packer/*" "Jenkinsfile"'
                     
-                    // 2. Upload to the storage account (Requires Storage Blob Data Contributor role)
-                    sh "az storage blob upload --account-name ${env.STORAGE_ACC} --container-name ${env.CONTAINER} --file app.zip --name app.zip --overwrite --auth-mode login"
+                    // 2. Upload to the storage account inside the 'api' directory
+                    // The --name parameter defines the virtual path (folder structure)
+                    sh """
+                        az storage blob upload \
+                            --account-name ${env.STORAGE_ACC} \
+                            --container-name ${env.CONTAINER} \
+                            --file app.zip \
+                            --name ${env.SUBDIR}/app.zip \
+                            --overwrite --auth-mode login
+                    """
                     
-                    // 3. Generate a temporary 1-hour secure SAS link for the VMs to download the zip
+                    // 3. Generate a temporary 1-hour secure SAS link for the specific blob path
                     env.DEPLOY_URL = sh(
-                        script: "az storage blob generate-sas --account-name ${env.STORAGE_ACC} --container-name ${env.CONTAINER} --name app.zip --permissions r --expiry `date -u -d '1 hour' +%Y-%m-%dT%H:%MZ` --full-uri -o tsv", 
+                        script: "az storage blob generate-sas --account-name ${env.STORAGE_ACC} --container-name ${env.CONTAINER} --name ${env.SUBDIR}/app.zip --permissions r --expiry `date -u -d '1 hour' +%Y-%m-%dT%H:%MZ` --full-uri -o tsv", 
                         returnStdout: true
                     ).trim()
                 }
@@ -49,7 +58,7 @@ pipeline {
             steps {
                 echo "Updating VMSS Extension Model with new code URL..."
                 
-                // This updates the 'Model'. New instances will automatically use these settings.
+                // This updates the Model. The DEPLOY_URL now includes the /api/ path automatically.
                 sh """
                 az vmss extension set \
                   --publisher Microsoft.Azure.Extensions \
@@ -102,7 +111,7 @@ pipeline {
             echo "Deployment to ${env.VMSS_NAME} completed successfully."
         }
         failure {
-            echo "Deployment failed. Please check the 'Package & Upload' permissions or VMSS status."
+            echo "Deployment failed. Please check permissions or VMSS status."
         }
     }
 }
