@@ -32,7 +32,7 @@ pipeline {
             steps {
                 script {
                     // 1. Zip the current workspace code
-                    sh 'zip -r app.zip . -x "*.git*" "packer/*" "Jenkinsfile"'
+                    sh 'zip -r app.zip . -x "*.git*" "Jenkinsfile"'
                     
                     // 2. Upload to the storage account inside the 'api' directory
                     // The --name parameter defines the virtual path (folder structure)
@@ -58,7 +58,7 @@ pipeline {
             steps {
                 echo "Updating VMSS Extension Model with new code URL..."
                 
-                // This updates the Model. The DEPLOY_URL now includes the /api/ path automatically.
+                // This updates the Model. The DEPLOY_URL now includes the /partner/ path automatically.
                 sh """
                 az vmss extension set \
                   --publisher Microsoft.Azure.Extensions \
@@ -66,7 +66,7 @@ pipeline {
                   --name CustomScript \
                   --resource-group ${env.VMSS_RG} \
                   --vmss-name ${env.VMSS_NAME} \
-                  --settings '{"fileUris": ["${env.DEPLOY_URL}"], "commandToExecute": "sudo unzip -o app.zip -d /var/www/html && sudo chown -R www-data:www-data /var/www/html && sudo systemctl restart nginx"}'
+                  --settings '{"fileUris": ["${env.DEPLOY_URL}"], "commandToExecute": "sudo unzip -o app.zip -d /var/www/partner && sudo chown -R www-data:www-data /var/www/partner && sudo systemctl restart nginx"}'
                 """
             }
         }
